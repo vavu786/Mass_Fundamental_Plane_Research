@@ -411,15 +411,14 @@ def main():
         mass_size_powlaw = lambda alpha, beta, delta, lmass, lnorm: lnorm + alpha*lmass + (beta-alpha)*np.log10(1+(10**(lmass-delta)))
         mass_size_sorted_x_ax = np.sort(all_data_pd["lmass"][inz].to_numpy())
         mass_size_y_ax = np.asarray([mass_size_powlaw(powlaw_q_alpha[i], powlaw_q_beta[i], powlaw_q_delta[i], lmass_val, powlaw_q_norm[i]) for lmass_val in mass_size_sorted_x_ax])
-        if i == 3 or i == 4:
-            print(f"{mass_size_sorted_x_ax[0]}, {mass_size_y_ax[0]}")
-        #logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], min_lmass), mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], max_lmass)], c='k', label="Nedkova: Quiescent")
-        #logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], min_lmass), mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], max_lmass)], c='tab:gray', label="Nedkova: Star-forming")
         
-        logR_M_axis.plot(mass_size_sorted_x_ax, mass_size_y_ax, c='k', label="Nedkova: Quiescent")
+        if i < 4:
+            logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], min_lmass), mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], max_lmass)], c='k', label="Nedkova linear (Q)")
+            logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], min_lmass), mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], max_lmass)], c='tab:gray', label="Nedkova linear (SF)")
+            logR_M_axis.plot(mass_size_sorted_x_ax, mass_size_y_ax, c='tab:brown', label="Nedkova double-powerlaw (Q)")
 
-        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], min_lmass), mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], max_lmass)], c='k', linestyle='dashed', label="van der Wel: Quiescent")
-        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], min_lmass), mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], max_lmass)], c='tab:gray', linestyle='dashed',  label="van der Wel: Star-forming")
+        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], min_lmass), mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], max_lmass)], c='k', linestyle='dashed', label="van der Wel (Q)")
+        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], min_lmass), mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], max_lmass)], c='tab:gray', linestyle='dashed',  label="van der Wel (SF)")
 
 
         # MFP_axis.plot([min_x, max_x], [min_x - 4.475 + (0.095 * np.log10(1 + ((zmin + zmax) / 2) - 0.063)), max_x - 4.475 + (0.095 * np.log10(1 + ((zmin + zmax) / 2) - 0.063))], c='tab:orange', label="Bezanson fitted line")
