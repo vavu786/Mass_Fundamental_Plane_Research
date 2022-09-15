@@ -402,9 +402,22 @@ def main():
         sf_logA_vals = [(0.78, 0.86), (0.74, 0.78), (0.66, 0.70), (0.61, 0.65), (0.61, 0.51)]
         sf_B_vals = [(0.22, 0.16), (0.21, 0.16), (0.21, 0.17), (0.20, 0.18), (0.20, 0.19)]
 
+        powlaw_q_alpha = [0.04, -0.03, -0.33, -0.17, -0.17]
+        powlaw_q_beta = [1.82, 1.60, 1.25, 1.84, 1.84]
+        powlaw_q_norm = [-0.24, 0.48, 3.24, 1.76, 1.76]
+        powlaw_q_delta = [10.94, 10.95, 10.63, 11.09, 11.09]
+ 
         mass_size_line = lambda logA, B, lmass: (logA + (B*np.log10(1/(5e10)))) + B*lmass
-        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], min_lmass), mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], max_lmass)], c='k', label="Nedkova: Quiescent")
-        logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], min_lmass), mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], max_lmass)], c='tab:gray', label="Nedkova: Star-forming")
+        mass_size_powlaw = lambda alpha, beta, delta, lmass, lnorm: lnorm + alpha*lmass + (beta-alpha)*np.log10(1+(10**(lmass-delta)))
+        mass_size_sorted_x_ax = np.sort(all_data_pd["lmass"][inz].to_numpy())
+        mass_size_y_ax = np.asarray([mass_size_powlaw(powlaw_q_alpha[i], powlaw_q_beta[i], powlaw_q_delta[i], lmass_val, powlaw_q_norm[i]) for lmass_val in mass_size_sorted_x_ax])
+        if i == 3 or i == 4:
+            print(f"{mass_size_sorted_x_ax[0]}, {mass_size_y_ax[0]}")
+        #logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], min_lmass), mass_size_line(quiescent_logA_vals[i][0], quiescent_B_vals[i][0], max_lmass)], c='k', label="Nedkova: Quiescent")
+        #logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], min_lmass), mass_size_line(sf_logA_vals[i][0], sf_B_vals[i][0], max_lmass)], c='tab:gray', label="Nedkova: Star-forming")
+        
+        logR_M_axis.plot(mass_size_sorted_x_ax, mass_size_y_ax, c='k', label="Nedkova: Quiescent")
+
         logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], min_lmass), mass_size_line(quiescent_logA_vals[i][1], quiescent_B_vals[i][1], max_lmass)], c='k', linestyle='dashed', label="van der Wel: Quiescent")
         logR_M_axis.plot([min_lmass, max_lmass], [mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], min_lmass), mass_size_line(sf_logA_vals[i][1], sf_B_vals[i][1], max_lmass)], c='tab:gray', linestyle='dashed',  label="van der Wel: Star-forming")
 
