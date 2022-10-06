@@ -89,6 +89,13 @@ def calc_f_dm(sigma_re, rekpc, lmass):
     return lm_dyn - lmass
 
 
+def log_likelihood(theta, x, y, yerr):
+    m, b, log_f = theta
+    model = m * x + b
+    sigma2 = yerr**2 + model**2 * np.exp(2 * log_f)
+    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(sigma2))
+    
+
 def num_to_label(num):
     if num == 0:
         return "SDSS"
@@ -162,17 +169,22 @@ def main():
     data_pd = pd.DataFrame(data)
     data_pd["f_dm"] = calc_f_dm(data_pd["sigma_re"].to_numpy(), data_pd["rekpc"].to_numpy(),
                                 data_pd["lmass"].to_numpy())
-    data_useful_pd = data_pd[["highzcatnum", "zspec", "rekpc", "lmass", "sigma_re", "mustar", "f_dm"]]
+
+    data_pd["esigma_re"] = data_pd["esigma_re_m"]
+    data_useful_pd = data_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
     # Belli (24 galaxies) (Yellow). 1.526 < z < 2.435
     Belli = np.genfromtxt("z=1.7_Belli.dat", names=True, dtype=None, skip_header=2, skip_footer=18, encoding=None)
     Belli_pd = pd.DataFrame(Belli)
     Belli_pd["rekpc"] = Belli_pd["r_maj"].to_numpy() * np.sqrt(Belli_pd["q"].to_numpy())
+    Belli_pd["erekpc"] = Belli_pd["r_maj_unc"].to_numpy() * np.sqrt(Belli_pd["q"].to_numpy())
+    Belli_pd["esigma_re"] = Belli_pd["sigma_re_unc"].to_numpy()
     Belli_pd["highzcatnum"] = np.full(Belli_pd.shape[0], 9)
     Belli_pd["mustar"] = Belli_pd["lmass"].to_numpy() - np.log10(2 * np.pi * np.square(Belli_pd["rekpc"].to_numpy()))
     Belli_pd["f_dm"] = calc_f_dm(Belli_pd["sigma_re"].to_numpy(), Belli_pd["rekpc"].to_numpy(),
                                  Belli_pd["lmass"].to_numpy())
-    Belli_useful_pd = Belli_pd[["highzcatnum", "zspec", "rekpc", "lmass", "sigma_re", "mustar", "f_dm"]]
+    
+    Belli_useful_pd = Belli_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
     # Forrest (14 galaxies) (Magenta) 
     Forrest = np.genfromtxt("z=3.5_Forrest.dat", names=True, dtype=None, skip_header=1, skip_footer=1)
@@ -182,19 +194,35 @@ def main():
         2 * np.pi * np.square(Forrest_pd["rekpc"].to_numpy()))
     Forrest_pd["f_dm"] = calc_f_dm(Forrest_pd["sigma_re"].to_numpy(), Forrest_pd["rekpc"].to_numpy(),
                                    Forrest_pd["lmass"].to_numpy())
-    Forrest_useful_pd = Forrest_pd[["highzcatnum", "zspec", "rekpc", "lmass", "sigma_re", "mustar", "f_dm"]]
+
+    Forrest_pd["erekpc"] = np.full(Forrest_pd.shape[0], 0)
+    Forrest_pd["esigma_re"] = np.full(Forrest_pd.shape[0], 0)
+    
+    Forrest_useful_pd = Forrest_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
+
+    print("Forrest:")
+    print(Forrest_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
 
     # LEGA-C data (1419 galaxies)
     legac_table = astropy.table.Table.read("legac_fp_selection.fits", format="fits")
     legac_pd = legac_table.to_pandas()
     legac_pd["highzcatnum"] = np.full(legac_pd.shape[0], 11)
     legac_pd["rekpc"] = 10 ** legac_pd["log_rec_kpc"].to_numpy()
+    legac_pd["erekpc"] = 10 ** legac_pd["e_log_rec_kpc"].to_numpy()
+    legac_pd["esigma_re"] = 10 ** legac_pd["e_log_sigma_stars"].to_numpy()
     legac_pd["sigma_re"] = 10 ** legac_pd["log_sigma_stars"].to_numpy()
     legac_pd.rename(columns={"z_spec": "zspec", "log_mstar": "lmass", "log_Sigma_star": "mustar"}, inplace=True)
     legac_pd["f_dm"] = calc_f_dm(legac_pd["sigma_re"].to_numpy(), legac_pd["rekpc"].to_numpy(),
                                  legac_pd["lmass"].to_numpy())
-    legac_useful_pd = legac_pd[["highzcatnum", "zspec", "rekpc", "lmass", "sigma_re", "mustar", "f_dm"]]
 
+    #legac_pd["erekpc"] = np.full(legac_pd.shape[0], 0)
+    #legac_pd["esigma_re"] = np.full(legac_pd.shape[0], 0)
+    
+    legac_useful_pd = legac_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
+
+    print("LEGA-C:")
+    print(legac_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
+    
     # SDSS (18,573 galaxies)
     sdss_table = astropy.table.Table.read("sdss_fp_selection_magphys_pymorph.fits", format="fits")
     sdss_pd = sdss_table.to_pandas()
@@ -204,11 +232,15 @@ def main():
     sdss_pd.rename(columns={"z": "zspec", "log_mstar": "lmass", "log_Sigma_star": "mustar"}, inplace=True)
     sdss_pd["f_dm"] = calc_f_dm(sdss_pd["sigma_re"].to_numpy(), sdss_pd["rekpc"].to_numpy(),
                                 sdss_pd["lmass"].to_numpy())
-    sdss_useful_pd = sdss_pd[["highzcatnum", "zspec", "rekpc", "lmass", "sigma_re", "mustar", "f_dm"]]
+
+    sdss_pd["erekpc"] = np.full(sdss_pd.shape[0], 0)
+    sdss_pd["esigma_re"] = np.full(sdss_pd.shape[0], 0)
+    
+    sdss_useful_pd = sdss_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
     all_data_pd = pd.concat([data_useful_pd, Belli_useful_pd, Forrest_useful_pd, legac_useful_pd, sdss_useful_pd])
     all_data_pd.set_index(pd.Index(range(all_data_pd.shape[0])), inplace=True)
-    print(all_data_pd)
+    print(all_data_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
 
     # _______________________________________________________________________________________________
 
