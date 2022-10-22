@@ -195,13 +195,7 @@ def main():
     Forrest_pd["f_dm"] = calc_f_dm(Forrest_pd["sigma_re"].to_numpy(), Forrest_pd["rekpc"].to_numpy(),
                                    Forrest_pd["lmass"].to_numpy())
 
-    Forrest_pd["erekpc"] = np.full(Forrest_pd.shape[0], 0)
-    Forrest_pd["esigma_re"] = np.full(Forrest_pd.shape[0], 0)
-    
     Forrest_useful_pd = Forrest_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
-
-    print("Forrest:")
-    print(Forrest_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
 
     # LEGA-C data (1419 galaxies)
     legac_table = astropy.table.Table.read("legac_fp_selection.fits", format="fits")
@@ -215,14 +209,8 @@ def main():
     legac_pd["f_dm"] = calc_f_dm(legac_pd["sigma_re"].to_numpy(), legac_pd["rekpc"].to_numpy(),
                                  legac_pd["lmass"].to_numpy())
 
-    #legac_pd["erekpc"] = np.full(legac_pd.shape[0], 0)
-    #legac_pd["esigma_re"] = np.full(legac_pd.shape[0], 0)
-    
     legac_useful_pd = legac_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
-    print("LEGA-C:")
-    print(legac_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
-    
     # SDSS (18,573 galaxies)
     sdss_table = astropy.table.Table.read("sdss_fp_selection_magphys_pymorph.fits", format="fits")
     sdss_pd = sdss_table.to_pandas()
@@ -240,7 +228,6 @@ def main():
 
     all_data_pd = pd.concat([data_useful_pd, Belli_useful_pd, Forrest_useful_pd, legac_useful_pd, sdss_useful_pd])
     all_data_pd.set_index(pd.Index(range(all_data_pd.shape[0])), inplace=True)
-    print(all_data_pd[["rekpc", "erekpc", "sigma_re", "esigma_re"]])
 
     # _______________________________________________________________________________________________
 
@@ -255,6 +242,9 @@ def main():
     all_data_pd["lradius"] = np.log10(all_data_pd["rekpc"].to_numpy())
     all_data_pd["mfp"] = ALPHA * np.log10(all_data_pd["sigma_re"].to_numpy()) - BETA * all_data_pd["mustar"]
     all_data_pd["lsigma_re"] = np.log10(all_data_pd["sigma_re"].to_numpy())
+    
+    
+    print(all_data_pd[["lradius", "mfp"]])
 
     min_x = np.min(all_data_pd["lradius"].to_numpy())
     max_x = np.max(all_data_pd["lradius"].to_numpy())
