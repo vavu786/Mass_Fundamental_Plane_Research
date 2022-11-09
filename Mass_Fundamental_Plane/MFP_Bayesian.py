@@ -19,6 +19,7 @@ import astropy
 from astropy.cosmology import WMAP9 as cosmo
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from time import perf_counter as pf
+from inspect import signature
 
 pd.set_option('display.colheader_justify', 'center')
 
@@ -89,12 +90,64 @@ def calc_f_dm(sigma_re, rekpc, lmass):
     return lm_dyn - lmass
 
 
-def log_likelihood(theta, x, y, yerr):
-    m, b, log_f = theta
-    model = m * x + b
-    sigma2 = yerr**2 + model**2 * np.exp(2 * log_f)
-    return -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(sigma2))
+# I use the standard definition of log likelihood
+# sigma is the covariance belatween the x & y uncertainties
+def log_likelihood(theta, x, y, xerr, yerr):
+    b = theta
+    v = np.array([-b, 1])
+    model = a + b*(x) - b*np.log10(5e10)  #the form that is being fit 
+    # the likelihood is sum of the lot of normal distributions
+    #S=np.cov(yerr, xerr) ### S is the covariance of xerr & yerr but need it for each data point
+    Sigma2 = np.dot(np.dot(S, v), v)
+    return -0.5 * np.sum((model-y)**2 / Sigma2 + np.log(Sigma2))
+
+# Assume uniform priors over the range I let a and b vary
+def log_prior(theta):
+    b, a = theta
+    if 0 < b < 1 and 0.1 < a < 2:
+        return 0
+    return -np.inf
+
+def log_probability(theta, x, y, xerr, yerr):
+    lp = log_prior(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood(theta, x, y, xerr, yerr)
+
+
+def calcError(lambdaFunc, valueArrs, valueErrors):
+    if 2 * len(signature(lambdaFunc).parameters) != len(valueArrs):
+        return -1
     
+    if len(valueArrs) != len(valueErrors):
+        return -1
+
+    tempSize = np.size(valueArrs[0])
+
+    for valueArr in valueArrs:
+        if tempSize != np.size(valueArr):
+            return -1
+        tempSize = np.size(valueArr)
+    
+    tempSize = np.size(valueErrors[0])
+
+    for valueError in valueErrors:
+        if tempSize != np.size(valueError):
+            return -1
+        tempSize = np.size(valueError)
+
+    errorArrayPlus = np.empty([np.size(valueArrs[0])])
+    errorArrayMinus = np.empty([np.size(valueArrs[0])])
+    
+    for i in range(np.size(errorArray)):
+        errorArrayPlus[i] = lambdaFunc(*(np.asarray(valueArrs)[:,i] + np.asarray(valueErrors)[:,i]))
+
+    for i in range(np.size(errorArray)):
+        errorArrayMinus[i] = lambdaFunc(*(np.asarray(valueArrs)[:,i] - np.asarray(valueErrors)[:,i]))
+    
+    return errorArrayPlus - errorArrayMinus
+ 
+
 
 def num_to_label(num):
     if num == 0:
@@ -154,6 +207,8 @@ def main():
     start_t = pf()
     paper_nums = [0, 11, 1, 2, 4, 5, 6, 7, 8, 9, 10]
 
+    print(calcError(lambda a, b: a+b, 1, 4, 4))
+    
     for num in paper_nums:
         print(f"{num}: {num_to_label(num)}")
 
@@ -171,6 +226,8 @@ def main():
                                 data_pd["lmass"].to_numpy())
 
     data_pd["esigma_re"] = data_pd["esigma_re_m"]
+    #data_pd["emustar"] = 
+
     data_useful_pd = data_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
     # Belli (24 galaxies) (Yellow). 1.526 < z < 2.435
@@ -197,21 +254,23 @@ def main():
 
     Forrest_useful_pd = Forrest_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
-    # LEGA-C data (1419 galaxies)
+    # LEGA-C data (1419 galaxies) added emustar (NOT array)
     legac_table = astropy.table.Table.read("legac_fp_selection.fits", format="fits")
     legac_pd = legac_table.to_pandas()
     legac_pd["highzcatnum"] = np.full(legac_pd.shape[0], 11)
     legac_pd["rekpc"] = 10 ** legac_pd["log_rec_kpc"].to_numpy()
+    
     legac_pd["erekpc"] = 10 ** legac_pd["e_log_rec_kpc"].to_numpy()
     legac_pd["esigma_re"] = 10 ** legac_pd["e_log_sigma_stars"].to_numpy()
+
     legac_pd["sigma_re"] = 10 ** legac_pd["log_sigma_stars"].to_numpy()
-    legac_pd.rename(columns={"z_spec": "zspec", "log_mstar": "lmass", "log_Sigma_star": "mustar"}, inplace=True)
+    legac_pd.rename(columns={"z_spec": "zspec", "log_mstar": "lmass", "log_Sigma_star": "mustar", "e_log_Sigma_star": "emustar"}, inplace=True)
     legac_pd["f_dm"] = calc_f_dm(legac_pd["sigma_re"].to_numpy(), legac_pd["rekpc"].to_numpy(),
                                  legac_pd["lmass"].to_numpy())
 
     legac_useful_pd = legac_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
-    # SDSS (18,573 galaxies)
+    # SDSS (18,573 galaxies) added emustar (NOT array)
     sdss_table = astropy.table.Table.read("sdss_fp_selection_magphys_pymorph.fits", format="fits")
     sdss_pd = sdss_table.to_pandas()
     sdss_pd["highzcatnum"] = np.full(sdss_pd.shape[0], 0)
@@ -220,9 +279,11 @@ def main():
     sdss_pd.rename(columns={"z": "zspec", "log_mstar": "lmass", "log_Sigma_star": "mustar"}, inplace=True)
     sdss_pd["f_dm"] = calc_f_dm(sdss_pd["sigma_re"].to_numpy(), sdss_pd["rekpc"].to_numpy(),
                                 sdss_pd["lmass"].to_numpy())
-
+    
+    # TODO: change these to a systematic error of around 5% (or 3% or 6%, something like that)
     sdss_pd["erekpc"] = np.full(sdss_pd.shape[0], 0)
     sdss_pd["esigma_re"] = np.full(sdss_pd.shape[0], 0)
+    sdss_pd["emustar"] = np.full(sdss_pd.shape[0], 0)
     
     sdss_useful_pd = sdss_pd[["highzcatnum", "zspec", "rekpc", "erekpc", "lmass", "sigma_re", "esigma_re", "mustar", "f_dm"]]
 
